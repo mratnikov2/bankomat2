@@ -1,27 +1,69 @@
 local BankAPI = require "BankAPI"
 local Logger = require "Logger"
 
-BankAPI.construction("1234", "0000", {RUB = 5000, USD = 50}, 10000, 2027)
+BankAPI.construction("1234", "0000", {rub = 5000, usd = 50}, 10000, 2027)
 
-print("Добро пожаловать! Введите номер вашей карты:")
-local user_card = io.read()
+local attempts = 3
 
-print("Введите ПИН-код:")
-local user_pin = io.read()
+print("--- СИСТЕМА БАНКОМАТА ЗАПУЩЕНА ---")
 
-local success, message = BankAPI.verify_pin(user_card, user_pin)
+while attempts > 0 do
+    print("\nПопыток осталось: " .. attempts)
+    print("Введите номер вашей карты:")
+    local user_card = io.read()
 
-if success then
-    print("Какую сумму хотите снять?")
-    local summ = tonumber(io.read())
-    print( message)
-    if BankAPI.withdraw(user_card, summ) then
-        print("Операция прошла успешно")
-        print("Остаток: " .. BankAPI.get_balance(user_card))
+    print("Введите ПИН-код:")
+    local user_pin = io.read()
+
+    local success, message = BankAPI.verify_pin(user_card, user_pin)
+
+    if success then
+        print("\n--- ДОСТУП РАЗРЕШЕН: " .. message .. " ---")
+        
+        while true do
+            print("\nВыберите действие:")
+            print("1 - Посмотреть баланс")
+            print("2 - Снять деньги")
+            print("3 - Завершить сеанс")
+            
+            local choice = io.read()
+
+            if choice == "1" then
+                print("Валюта (rub, usd):")
+                local currency = io.read()
+                print("Ваш баланс: " .. BankAPI.get_balance(user_card, currency))
+
+            elseif choice == "2" then
+            print("Сумма:")
+            local amount = tonumber(io.read())
+            print("Валюта (rub, usd):")
+            local currency = io.read()     
+            if BankAPI.withdraw(user_card, amount, currency) then
+                print("Успешно! Заберите наличные.")
+                local log_msg = string.format("Снятие: %d %s, Карта: %s", amount, currency, user_card)
+                Logger.log("TRANSACTION", log_msg)               
+            else
+                print("Ошибка: недостаточно средств.")
+                Logger.log("ERROR", "Отказ в снятии: " .. user_card)
+            end
+
+            elseif choice == "3" then
+                print("Заберите карту. До свидания!")
+                os.exit()
+            else
+                print("Ошибка выбора. Попробуйте 1, 2 или 3.")
+            end
+        end
     else
-        print("Ошибка: Средств недостаточно")
+       
+        attempts = attempts - 1 
+        print("ВНИМАНИЕ: " .. message)
+        Logger.log("WARNING", "Неверный ПИН для карты: " .. user_card)
+        
+        if attempts == 0 then
+            print("\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+            print("КАРТА ЗАБЛОКИРОВАНА. ОБРАТИТЕСЬ В БАНК.")
+            print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        end
     end
-else
-    print("В доступе отказано: " .. message)
-    Logger.log("WARNING", message)
 end
